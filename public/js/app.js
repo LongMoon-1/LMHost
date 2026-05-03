@@ -42,7 +42,7 @@ function initCookiesAccepted() {
 
 const defaultLang = {
     'drawer.title': '导航',
-    'nav.create': '创建网站', 'nav.sites': '我的网站', 'nav.settings': '设置', 'nav.logout': '退出登录',
+    'nav.create': '创建网站', 'nav.sites': '我的网站', 'nav.apikey': 'API Key', 'nav.settings': '设置', 'nav.logout': '退出登录',
     'nav.help': '帮助',
     'header.logout': '退出',
     'auth.login': '登录', 'auth.register': '注册',
@@ -62,6 +62,21 @@ const defaultLang = {
     'create.pasteSiteId': '自定义标识（可选）', 'create.pasteSiteIdPlaceholder': '留空自动生成',
     'sites.title': '我的网站', 'sites.refresh': '刷新', 'sites.empty': '还没有部署任何网站',
     'sites.createFirst': '开始创建', 'sites.noDesc': '暂无描述', 'sites.loadError': '加载失败',
+    'apikey.title': 'API Key',
+    'apikey.desc': '使用 API Key 可以通过命令行或脚本部署网站，无需登录。请妥善保管您的 Key。',
+    'apikey.empty': '暂无 API Key',
+    'apikey.create': '创建',
+    'apikey.namePlaceholder': '输入 Key 名称',
+    'apikey.created': '创建于',
+    'apikey.reveal': '查看',
+    'apikey.copyKey': '复制',
+    'apikey.rename': '重命名',
+    'apikey.delete': '删除',
+    'apikey.renameTitle': '重命名 Key',
+    'confirm.deleteKey': '确定要删除此 API Key 吗？使用该 Key 的脚本将立即失效。',
+    'toast.keyCreated': 'API Key 已创建',
+    'toast.keyRenamed': '已重命名',
+    'toast.keyDeleted': 'API Key 已删除',
     'settings.general': '通用设置', 'settings.theme': '主题颜色',
     'settings.themeAuto': '跟随系统', 'settings.themeDark': '深色', 'settings.themeLight': '浅色',
     'settings.language': '语言设置',
@@ -126,6 +141,7 @@ function applyAllTexts() {
     $('#drawerTitle').textContent = t('drawer.title');
     $('#navCreate span').textContent = t('nav.create');
     $('#navSites span').textContent = t('nav.sites');
+    $('#navApikey span').textContent = t('nav.apikey');
     $('#navHelp span').textContent = t('nav.help');
     $('#navSettings span').textContent = t('nav.settings');
     $('#drawerLogout span').textContent = t('nav.logout');
@@ -169,6 +185,11 @@ function applyAllTexts() {
     $('#btnRefreshSites span').textContent = t('sites.refresh');
     $('#emptyText').textContent = t('sites.empty');
     $('#btnGoCreate span').textContent = t('sites.createFirst');
+    $('#apikeyTitle').textContent = t('apikey.title');
+    $('#apikeyDesc').textContent = t('apikey.desc');
+    $('#emptyApikeyText').textContent = t('apikey.empty');
+    $('#apikeyName').placeholder = t('apikey.namePlaceholder');
+    $('#btnCreateKey span').textContent = t('apikey.create');
     $('#settingsGeneral').textContent = t('settings.general');
     $('#lblTheme').textContent = t('settings.theme');
     $('#themeSelect option[value="auto"]').textContent = t('settings.themeAuto');
@@ -212,7 +233,6 @@ function showToast(msg, type = 'info') {
     setTimeout(() => el.remove(), 3000);
 }
 
-// 确认弹窗（确认按钮支持加载态）
 function showConfirm(message, type = 'warning', confirmText = null) {
     return new Promise((resolve) => {
         const wrapper = document.createElement('div');
@@ -221,32 +241,18 @@ function showConfirm(message, type = 'warning', confirmText = null) {
         const okText = confirmText || t('confirm.ok');
         wrapper.innerHTML = `<div class="modal-overlay" id="confirmOverlay"><div class="modal"><div class="modal-body"><div class="confirm-icon ${type}"><i class="fa-solid ${iconClass}"></i></div><div class="confirm-message">${message}</div></div><div class="modal-footer"><button class="btn btn-outline" id="confirmCancel">${t('confirm.cancel')}</button><button class="btn ${type==='danger'?'btn-danger':'btn-primary'}" id="confirmOk">${okText}</button></div></div></div>`;
         document.body.appendChild(wrapper);
-
         const okBtn = document.getElementById('confirmOk');
         const cancelBtn = document.getElementById('confirmCancel');
         const overlay = document.getElementById('confirmOverlay');
-
         let resolved = false;
-        const close = (result) => {
-            if (resolved) return;
-            resolved = true;
-            wrapper.remove();
-            resolve(result);
-        };
-
-        okBtn.onclick = () => {
-            okBtn.disabled = true;
-            okBtn.innerHTML = '<span class="spinner"></span> ' + okText;
-            // 不自动关闭，由调用方在完成操作后手动 close
-            resolve(true);
-        };
+        const close = (result) => { if (resolved) return; resolved = true; wrapper.remove(); resolve(result); };
+        okBtn.onclick = () => { okBtn.disabled = true; okBtn.innerHTML = '<span class="spinner"></span> ' + okText; resolve(true); };
         cancelBtn.onclick = () => close(false);
         overlay.onclick = (e) => { if (e.target === overlay) close(false); };
     });
 }
 
-// 关闭确认弹窗（由调用方在操作完成后调用）
-function closeConfirmModal(success) {
+function closeConfirmModal() {
     const wrapper = document.querySelector('.confirm-modal');
     if (wrapper) wrapper.remove();
 }
@@ -296,6 +302,7 @@ function switchPage(page) {
     if (pg) pg.classList.add('active');
     $$('.drawer-item[data-page]').forEach(i => i.classList.toggle('active', i.dataset.page === page));
     if (page === 'sites') loadSites();
+    if (page === 'apikey') loadApiKeys();
     if (page === 'settings') loadSettingsContent();
     if (window.innerWidth < 768) closeDrawer();
 }
@@ -330,6 +337,7 @@ async function loadLang(code) {
     cookiesAccepted ? setCookie('lmhost_lang', code) : (memoryOnly.lang = code);
     applyAllTexts();
     if (currentPage === 'sites') loadSites();
+    if (currentPage === 'apikey') loadApiKeys();
 }
 
 function createModal(title, bodyHTML, footerHTML, extraClass = '') {
@@ -352,24 +360,10 @@ function showCookieBanner() {
     const overlay = document.createElement('div');
     overlay.className = 'cookie-banner-overlay';
     overlay.id = 'cookieBannerOverlay';
-    overlay.innerHTML = `<div class="cookie-banner">
-        <div class="cookie-header"><i class="fa-solid fa-cookie-bite cookie-icon"></i><span class="cookie-title">${t('cookie.title')}</span></div>
-        <div class="cookie-text">${t('cookie.text')}</div>
-        <div class="cookie-actions"><button class="btn btn-outline" id="btnCookieReject">${t('cookie.reject')}</button><button class="btn btn-primary" id="btnCookieAccept">${t('cookie.accept')}</button></div>
-        <div class="cookie-link"><a onclick="window.location.href='/help'">${t('cookie.learnMore')}</a></div></div>`;
+    overlay.innerHTML = `<div class="cookie-banner"><div class="cookie-header"><i class="fa-solid fa-cookie-bite cookie-icon"></i><span class="cookie-title">${t('cookie.title')}</span></div><div class="cookie-text">${t('cookie.text')}</div><div class="cookie-actions"><button class="btn btn-outline" id="btnCookieReject">${t('cookie.reject')}</button><button class="btn btn-primary" id="btnCookieAccept">${t('cookie.accept')}</button></div><div class="cookie-link"><a onclick="window.location.href='/help'">${t('cookie.learnMore')}</a></div></div>`;
     document.body.appendChild(overlay);
-
-    $('#btnCookieAccept').onclick = () => {
-        document.cookie = `lmhost_cookie_accepted=1;expires=${new Date(Date.now()+365*24*60*60*1000).toUTCString()};path=/;SameSite=Lax`;
-        overlay.remove();
-        initAfterCookie(true);
-    };
-    $('#btnCookieReject').onclick = () => {
-        overlay.remove();
-        memoryOnly.theme = 'auto';
-        memoryOnly.lang = 'zh-CN';
-        initAfterCookie(false);
-    };
+    $('#btnCookieAccept').onclick = () => { document.cookie = `lmhost_cookie_accepted=1;expires=${new Date(Date.now()+365*24*60*60*1000).toUTCString()};path=/;SameSite=Lax`; overlay.remove(); initAfterCookie(true); };
+    $('#btnCookieReject').onclick = () => { overlay.remove(); memoryOnly.theme = 'auto'; memoryOnly.lang = 'zh-CN'; initAfterCookie(false); };
 }
 
 // ========== 登录/注册 ==========
@@ -489,7 +483,93 @@ function formatDate(iso) {
 $('#btnRefreshSites').onclick = loadSites;
 $('#btnGoCreate').onclick = () => switchPage('create');
 
-// ========== 编辑面板（带加载遮罩） ==========
+// ========== API Key ==========
+async function loadApiKeys() {
+    try {
+        const data = await api('/api/keys');
+        const list = $('#apikeyList'), empty = $('#emptyApikey');
+        if (data.keys.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; }
+        else {
+            empty.style.display = 'none';
+            list.innerHTML = data.keys.map(k => `
+                <li class="apikey-item" data-keyid="${k.id}">
+                    <div class="key-info">
+                        <div class="key-name">${escHtml(k.name)}</div>
+                        <div class="key-meta">${t('apikey.created')} ${formatDate(k.createdAt)}</div>
+                        <div class="key-reveal" id="keyReveal-${k.id}">${k.key}</div>
+                    </div>
+                    <div class="key-actions">
+                        <button class="btn btn-outline btn-sm key-reveal-btn" data-keyid="${k.id}">${t('apikey.reveal')}</button>
+                        <button class="btn btn-outline btn-sm key-copy-btn" data-keyid="${k.id}">${t('apikey.copyKey')}</button>
+                        <button class="btn btn-outline btn-sm key-rename-btn" data-keyid="${k.id}" data-name="${escHtml(k.name)}">${t('apikey.rename')}</button>
+                        <button class="btn btn-danger btn-sm key-delete-btn" data-keyid="${k.id}">${t('apikey.delete')}</button>
+                    </div>
+                </li>
+            `).join('');
+        }
+        bindKeyEvents();
+    } catch(e) { showToast('加载 API Key 失败', 'error'); }
+}
+
+function bindKeyEvents() {
+    $$('.key-reveal-btn').forEach(btn => {
+        btn.onclick = () => {
+            const reveal = document.getElementById(`keyReveal-${btn.dataset.keyid}`);
+            if (reveal) reveal.classList.toggle('show');
+        };
+    });
+    $$('.key-copy-btn').forEach(btn => {
+        btn.onclick = () => {
+            const reveal = document.getElementById(`keyReveal-${btn.dataset.keyid}`);
+            if (reveal) copyText(reveal.textContent);
+        };
+    });
+    $$('.key-rename-btn').forEach(btn => {
+        btn.onclick = () => {
+            const newName = prompt(t('apikey.renameTitle'), btn.dataset.name);
+            if (newName && newName.trim()) renameKey(btn.dataset.keyid, newName.trim());
+        };
+    });
+    $$('.key-delete-btn').forEach(btn => {
+        btn.onclick = async () => {
+            const confirmed = await showConfirm(t('confirm.deleteKey'), 'danger', t('apikey.delete'));
+            if (!confirmed) return;
+            try {
+                await api(`/api/keys/${btn.dataset.keyid}`, { method: 'DELETE' });
+                showToast(t('toast.keyDeleted'), 'info');
+                closeConfirmModal();
+                loadApiKeys();
+            } catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
+        };
+    });
+}
+
+async function renameKey(keyId, newName) {
+    try {
+        await api(`/api/keys/${keyId}`, { method: 'PUT', body: JSON.stringify({ name: newName }) });
+        showToast(t('toast.keyRenamed'), 'success');
+        loadApiKeys();
+    } catch(e) { showToast(e.message, 'error'); }
+}
+
+$('#btnCreateKey').onclick = async () => {
+    const name = $('#apikeyName').value.trim();
+    if (!name) return showToast('请输入 Key 名称', 'error');
+    setLoadingBtn('#btnCreateKey', true);
+    try {
+        const data = await api('/api/keys', { method: 'POST', body: JSON.stringify({ name }) });
+        showToast(t('toast.keyCreated'), 'success');
+        $('#apikeyName').value = '';
+        loadApiKeys();
+        setTimeout(() => {
+            const reveal = document.getElementById(`keyReveal-${data.key.id}`);
+            if (reveal) reveal.classList.add('show');
+        }, 200);
+    } catch(e) { showToast(e.message, 'error'); }
+    finally { resetBtn('#btnCreateKey', '<i class="fa-solid fa-plus"></i> ' + t('apikey.create')); }
+};
+
+// ========== 编辑面板 ==========
 $('#sitesGrid').onclick = e => { const card = e.target.closest('.site-card'); if(card) openConfigModal(card.dataset.id); };
 let activeModal = null;
 let editContext = { siteId: null, siteName: '', siteCode: '', url: '', visitCount: 0, createdAt: '', updatedAt: '' };
@@ -520,16 +600,8 @@ function renderConfigView() {
     $('#cfgDelete').onclick = async () => {
         const confirmed = await showConfirm(t('confirm.deleteSite'), 'danger', t('edit.delete'));
         if (!confirmed) return;
-        try {
-            await api(`/api/sites/${ctx.siteId}`, { method:'DELETE' });
-            showToast(t('toast.deleted'), 'info');
-            activeModal.close(); activeModal = null;
-            closeConfirmModal();
-            loadSites();
-        } catch(e) {
-            showToast(e.message, 'error');
-            closeConfirmModal();
-        }
+        try { await api(`/api/sites/${ctx.siteId}`, { method:'DELETE' }); showToast(t('toast.deleted'), 'info'); activeModal.close(); activeModal = null; closeConfirmModal(); loadSites(); }
+        catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
     };
 }
 function renderCodeEditorView() {
@@ -566,28 +638,16 @@ $('#btnChangePassword').onclick = async () => {
 $('#btnDeleteAllSites').onclick = async () => {
     const confirmed = await showConfirm(t('confirm.deleteAllSites'), 'danger', t('settings.deleteAllSites'));
     if (!confirmed) return;
-    try {
-        await api('/api/sites', { method:'DELETE' });
-        showToast(t('toast.allDeleted'), 'success');
-        closeConfirmModal();
-        loadSites();
-    } catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
+    try { await api('/api/sites', { method:'DELETE' }); showToast(t('toast.allDeleted'), 'success'); closeConfirmModal(); loadSites(); }
+    catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
 };
 $('#btnDeleteAccount').onclick = async () => {
     const confirmed = await showConfirm(t('confirm.deleteAccount'), 'danger', t('settings.deleteAccount'));
     if (!confirmed) return;
-    try {
-        await api('/api/user/account', { method:'DELETE' });
-        showToast(t('toast.accountDeleted'), 'info');
-        closeConfirmModal();
-        logout(true);
-    } catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
+    try { await api('/api/user/account', { method:'DELETE' }); showToast(t('toast.accountDeleted'), 'info'); closeConfirmModal(); logout(true); }
+    catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
 };
-$('#btnSettingsLogout').onclick = async () => {
-    const confirmed = await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'));
-    if (confirmed) logout();
-};
-
+$('#btnSettingsLogout').onclick = async () => { if (await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'))) logout(); };
 $('#btnResetCookie').onclick = async () => {
     const confirmed = await showConfirm(t('confirm.resetCookie'), 'warning', t('settings.resetCookie'));
     if (!confirmed) return;
@@ -608,8 +668,8 @@ $('#overlay').onclick = closeDrawer;
 $('#drawerClose').onclick = closeDrawer;
 $$('.drawer-item[data-page]').forEach(item => item.onclick = () => switchPage(item.dataset.page));
 $('#navHelp').onclick = () => { window.location.href = '/help'; };
-$('#drawerLogout').onclick = async () => { const confirmed = await showConfirm(t('confirm.logout'), 'warning', t('nav.logout')); if (confirmed) logout(); };
-$('#btnLogout').onclick = async () => { const confirmed = await showConfirm(t('confirm.logout'), 'warning', t('nav.logout')); if (confirmed) logout(); };
+$('#drawerLogout').onclick = async () => { if (await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'))) logout(); };
+$('#btnLogout').onclick = async () => { if (await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'))) logout(); };
 document.onkeydown = e => { if(e.key==='Escape') { if (activeModal) { activeModal.close(); activeModal = null; } closeDrawer(); } };
 
 function setLoadingBtn(selector, loading, text = '') {
@@ -630,7 +690,6 @@ function initAfterCookie(accepted) {
     checkAuth();
 }
 
-// ========== 启动 ==========
 showCookieBanner();
 if (getCookie('lmhost_cookie_accepted')) {
     initAfterCookie(true);
