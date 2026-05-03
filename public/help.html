@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>LMHost - 帮助中心</title>
+<title>LMHost</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 :root {
@@ -59,6 +59,7 @@ a { color: var(--accent); text-decoration: none; }
 .detail-body { flex: 1; padding: 20px; overflow-y: auto; max-width: 700px; margin: 0 auto; width: 100%; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.8; }
 .detail-body strong { color: var(--text); }
 .detail-body code { background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; color: var(--accent); }
+.detail-body pre { background: var(--bg-tertiary); padding: 12px 16px; border-radius: var(--radius); overflow-x: auto; font-family: monospace; font-size: 0.8rem; line-height: 1.6; margin: 8px 0; white-space: pre-wrap; word-break: break-all; }
 @media (max-width: 640px) { .sidebar { display: none; } .mobile-tabs { display: flex; } .content { padding: 12px 14px; } }
 </style>
 </head>
@@ -87,11 +88,14 @@ function getCookie(name) {
     document.documentElement.setAttribute('data-theme', getCookie('lmhost_theme') || 'auto');
 })();
 
+const HOST = location.origin;
+
 const zh = {
     topbarTitle: '帮助中心', btnBackHome: '首页',
     categories: [
         { id: 'login', icon: 'fa-key', name: '登录问题' },
         { id: 'guide', icon: 'fa-book', name: '使用引导' },
+        { id: 'apikey', icon: 'fa-key', name: 'API Key' },
         { id: 'features', icon: 'fa-puzzle-piece', name: '功能问题' },
         { id: 'cookie', icon: 'fa-cookie-bite', name: 'Cookie' }
     ],
@@ -103,11 +107,18 @@ const zh = {
             { q: '为什么会提示 429 错误？', a: '<strong>频率限制</strong>：登录/注册每分钟最多 15 次请求。等待一分钟后重试。' }
         ],
         guide: [
-            { q: '如何创建一个网站？', a: '<strong>1. 上传文件：</strong>拖拽或点击选择 HTML 文件，填写名称，点击「部署网站」。<br><br><strong>2. 粘贴代码：</strong>粘贴 HTML 代码，填写名称，点击「部署网站」。<br><br>部署成功后获得链接：<code>/h/标识</code>' },
-            { q: '如何访问已部署的网站？', a: '在<strong>「我的网站」</strong>中点击卡片，再点击<strong>「访问」</strong>按钮。链接格式：<code>域名/h/标识</code>。' },
+            { q: '如何创建一个网站？', a: '<strong>1. 上传文件：</strong>拖拽或点击选择 HTML 文件，填写名称，点击「部署网站」。<br><br><strong>2. 粘贴代码：</strong>粘贴 HTML 代码，填写名称，点击「部署网站」。<br><br>部署成功后获得链接：<code>' + HOST + '/h/标识</code>' },
+            { q: '如何访问已部署的网站？', a: '在<strong>「我的网站」</strong>中点击卡片，再点击<strong>「访问」</strong>按钮。链接格式：<code>' + HOST + '/h/标识</code>。' },
             { q: '如何编辑我的网站？', a: '点击网站卡片 → 修改名称 → 点击「更新 HTML」编辑代码 → 「应用」→「保存修改」。下方可实时预览。' },
             { q: '如何删除网站？', a: '点击网站卡片 → 点击红色<strong>「删除」</strong>按钮 → 确认。此操作不可撤销。' },
             { q: '如何查看网站访问量？', a: '网站卡片上显示<strong>访问次数</strong>（眼睛图标）。点击卡片可看详情。' }
+        ],
+        apikey: [
+            { q: '什么是 API Key？', a: 'API Key 是一个密钥令牌，允许您通过命令行或脚本直接部署网站，无需在浏览器中登录。每个 Key 由用户独立管理，互不影响。' },
+            { q: '如何创建 API Key？', a: '在<strong>「API Key」</strong>页面，输入 Key 名称（如"我的脚本"），点击<strong>「创建」</strong>。创建后立即显示完整 Key，请妥善保管。' },
+            { q: '如何使用 API Key 部署网站？', a: '上传文件：<br><pre>curl -X POST ' + HOST + '/api/deploy \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -F "file=@index.html" \\\n  -F "name=我的网站"</pre>粘贴代码：<br><pre>curl -X POST ' + HOST + '/api/deploy/paste \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"code":"&lt;h1&gt;Hello&lt;/h1&gt;","name":"我的网站"}\'</pre>' },
+            { q: '如何管理 API Key？', a: '在<strong>「API Key」</strong>页面可以<strong>查看</strong>（点击「查看」展开完整 Key）、<strong>复制</strong>、<strong>重命名</strong>和<strong>删除</strong> Key。删除的 Key 立即失效。' },
+            { q: 'API Key 安全吗？', a: 'Key 仅在创建时完整显示一次，之后只能看到后几位。支持跨域调用（CORS），可通过任何网络环境使用。请勿泄露您的 Key。' }
         ],
         features: [
             { q: '如何切换主题颜色？', a: '进入<strong>「设置」</strong>→「通用设置」→「主题颜色」下拉选择。' },
@@ -131,6 +142,7 @@ const en = {
     categories: [
         { id: 'login', icon: 'fa-key', name: 'Login Issues' },
         { id: 'guide', icon: 'fa-book', name: 'Usage Guide' },
+        { id: 'apikey', icon: 'fa-key', name: 'API Key' },
         { id: 'features', icon: 'fa-puzzle-piece', name: 'Features' },
         { id: 'cookie', icon: 'fa-cookie-bite', name: 'Cookie' }
     ],
@@ -142,11 +154,18 @@ const en = {
             { q: 'Why 429 error?', a: '<strong>Rate limit:</strong> 15 requests/min. Wait and retry.' }
         ],
         guide: [
-            { q: 'How to create a site?', a: '<strong>1. Upload File:</strong> Select HTML, enter name, click "Deploy Site".<br><br><strong>2. Paste Code:</strong> Paste HTML, enter name, click "Deploy Site".<br><br>Link: <code>/h/your-id</code>' },
-            { q: 'How to visit a deployed site?', a: 'Find in <strong>"My Sites"</strong>, click card, click <strong>"Visit"</strong>. Link: <code>domain/h/id</code>' },
+            { q: 'How to create a site?', a: '<strong>1. Upload File:</strong> Select HTML, enter name, click "Deploy Site".<br><br><strong>2. Paste Code:</strong> Paste HTML, enter name, click "Deploy Site".<br><br>Link: <code>' + HOST + '/h/your-id</code>' },
+            { q: 'How to visit a deployed site?', a: 'Find in <strong>"My Sites"</strong>, click card, click <strong>"Visit"</strong>. Link: <code>' + HOST + '/h/id</code>' },
             { q: 'How to edit a site?', a: 'Click site card → edit name → click "Update HTML" → "Apply" → "Save Changes". Live preview below.' },
             { q: 'How to delete a site?', a: 'Click card → red <strong>"Delete"</strong> → confirm. Cannot be undone.' },
             { q: 'How to check visit count?', a: 'Visible on cards (eye icon). Click for details.' }
+        ],
+        apikey: [
+            { q: 'What is an API Key?', a: 'An API Key is a token that allows you to deploy sites via command line or scripts without logging in through a browser. Each key is managed independently per user.' },
+            { q: 'How to create an API Key?', a: 'On the <strong>"API Key"</strong> page, enter a name (e.g. "My Script") and click <strong>"Create"</strong>. The full key is shown once — save it securely.' },
+            { q: 'How to use API Key to deploy?', a: 'Upload file:<br><pre>curl -X POST ' + HOST + '/api/deploy \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -F "file=@index.html" \\\n  -F "name=My Site"</pre>Paste code:<br><pre>curl -X POST ' + HOST + '/api/deploy/paste \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"code":"&lt;h1&gt;Hello&lt;/h1&gt;","name":"My Site"}\'</pre>' },
+            { q: 'How to manage API Keys?', a: 'On the <strong>"API Key"</strong> page you can <strong>reveal</strong>, <strong>copy</strong>, <strong>rename</strong>, and <strong>delete</strong> keys. Deleted keys are immediately invalidated.' },
+            { q: 'Are API Keys secure?', a: 'The full key is shown only once upon creation. It supports CORS for cross-origin requests. Do not share your key publicly.' }
         ],
         features: [
             { q: 'How to switch theme?', a: '<strong>Settings</strong> → Theme dropdown.' },
@@ -170,6 +189,9 @@ let currentLang = detectSystemLang();
 let t = currentLang === 'zh' ? zh : en;
 
 function $(s) { return document.querySelector(s); }
+
+let activeCategory = t.categories[0].id;
+
 function renderSidebar() {
     const sidebar = $('#sidebar');
     sidebar.innerHTML = t.categories.map(c => `<button class="sidebar-item${c.id===activeCategory?' active':''}" data-cat="${c.id}"><i class="fa-solid ${c.icon}"></i> ${c.name}</button>`).join('');
@@ -193,7 +215,6 @@ function openDetail(title, body) {
     page.innerHTML = `<div class="detail-topbar"><button class="detail-back-btn"><i class="fa-solid fa-arrow-left"></i> ${t.detailBack}</button><span class="detail-title">${title}</span><span style="width:60px;"></span></div><div class="detail-body">${body}</div>`;
     document.body.appendChild(page); page.querySelector('.detail-back-btn').onclick = () => page.remove();
 }
-let activeCategory = t.categories[0].id;
 function renderAll() {
     $('#topbarTitle').textContent = t.topbarTitle;
     $('#btnBackHome').textContent = t.btnBackHome;
