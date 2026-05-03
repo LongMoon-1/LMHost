@@ -27,7 +27,7 @@ function readDB() {
     try {
         return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
     } catch (e) {
-        return { users: [], sites: [] };
+        return { users: [], sites: [], apikeys: [] };
     }
 }
 
@@ -36,7 +36,7 @@ function writeDB(data) {
 }
 
 if (!fs.existsSync(DB_PATH)) {
-    writeDB({ users: [], sites: [] });
+    writeDB({ users: [], sites: [], apikeys: [] });
 }
 
 // ==================== 语言列表 ====================
@@ -70,9 +70,10 @@ function getLangList() {
 
 // ==================== 中间件 ====================
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
@@ -94,8 +95,19 @@ const apiLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const deployLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    message: { error: '请求过于频繁，请稍后再试', code: 429 },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 app.use('/api/auth', authLimiter);
-app.use('/api', apiLimiter);
+app.use('/api/user', apiLimiter);
+app.use('/api/sites', apiLimiter);
+app.use('/api/keys', apiLimiter);
+app.use('/api/deploy', deployLimiter);
 
 function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -110,6 +122,21 @@ function authMiddleware(req, res, next) {
     } catch (err) {
         return res.status(401).json({ error: '令牌无效或已过期，请重新登录' });
     }
+}
+
+function apiKeyAuth(req, res, next) {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey) {
+        return res.status(401).json({ error: '缺少 API Key，请在 X-API-Key 头中提供' });
+    }
+    const db = readDB();
+    const keyRecord = db.apikeys.find(k => k.key === apiKey);
+    if (!keyRecord) {
+        return res.status(401).json({ error: 'API Key 无效' });
+    }
+    req.user = { userId: keyRecord.userId, username: keyRecord.userName };
+    req.apiKeyRecord = keyRecord;
+    next();
 }
 
 // Multer
@@ -145,19 +172,14 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// ==================== 万能删除函数（Windows 系统命令兜底） ====================
+// ==================== 万能删除函数 ====================
 function forceRemoveDir(dirPath) {
-    // 方法1：Node.js 原生删除
     try {
         if (fs.existsSync(dirPath)) {
             fs.rmSync(dirPath, { recursive: true, force: true });
             if (!fs.existsSync(dirPath)) return true;
         }
-    } catch (e) {
-        // 原生失败，尝试系统命令
-    }
-
-    // 方法2：Windows 使用 cmd 强制删除
+    } catch (e) {}
     try {
         if (process.platform === 'win32') {
             execSync(`cmd /c rmdir /s /q "${dirPath}"`, { stdio: 'ignore' });
@@ -166,36 +188,23 @@ function forceRemoveDir(dirPath) {
         }
         return !fs.existsSync(dirPath);
     } catch (e) {
-        console.error(`[强制删除失败] ${dirPath}`, e.message);
         return false;
     }
 }
 
-// ==================== 启动清理（输出详细日志） ====================
+// ==================== 启动清理 ====================
 function cleanOrphanUploads() {
-    console.log('[启动清理] 开始扫描 uploads 目录...');
     const db = readDB();
     const validUserIds = new Set(db.users.map(u => u.id));
     if (fs.existsSync(uploadsDir)) {
         const dirs = fs.readdirSync(uploadsDir);
         for (const dir of dirs) {
             const fullPath = path.join(uploadsDir, dir);
-            if (!fs.statSync(fullPath).isDirectory()) continue;
-
-            if (validUserIds.has(dir)) {
-                console.log(`[启动清理] 保留: ${dir} (用户存在)`);
-            } else {
-                console.log(`[启动清理] 清理残留: ${dir} ...`);
-                const success = forceRemoveDir(fullPath);
-                if (success) {
-                    console.log(`[启动清理] ✅ 已删除: ${dir}`);
-                } else {
-                    console.error(`[启动清理] ❌ 删除失败！请手动删除: ${fullPath}`);
-                }
+            if (fs.statSync(fullPath).isDirectory() && !validUserIds.has(dir)) {
+                forceRemoveDir(fullPath);
             }
         }
     }
-    console.log('[启动清理] 完成。');
 }
 cleanOrphanUploads();
 
@@ -204,6 +213,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 function generateSiteId() {
     return crypto.randomBytes(4).toString('hex');
+}
+
+function generateApiKey() {
+    return 'lm_' + crypto.randomBytes(16).toString('hex');
 }
 
 // ==================== 公开路由 ====================
@@ -216,13 +229,7 @@ app.get('/h/:siteId', (req, res) => {
     const db = readDB();
     const site = db.sites.find(s => s.id === siteId);
     if (!site) {
-        return res.status(404).send(`
-            <!DOCTYPE html>
-            <html><head><meta charset="utf-8"><title>404 - Not Found</title>
-            <style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0d1117;color:#c9d1d9;}
-            .box{text-align:center;}h1{font-size:4rem;color:#f85149;margin:0;}p{color:#8b949e;}</style>
-            </head><body><div class="box"><h1>404</h1><p>Site not found</p></div></body></html>
-        `);
+        return res.status(404).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>404 - Not Found</title><style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0d1117;color:#c9d1d9;}.box{text-align:center;}h1{font-size:4rem;color:#f85149;margin:0;}p{color:#8b949e;}</style></head><body><div class="box"><h1>404</h1><p>Site not found</p></div></body></html>`);
     }
     site.visitCount = (site.visitCount || 0) + 1;
     writeDB(db);
@@ -246,23 +253,15 @@ app.post('/api/auth/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = {
-        id: uuidv4(),
-        username,
-        password: hashedPassword,
-        nickname: nickname || username,
-        createdAt: new Date().toISOString(),
-        loginAttempts: 0,
-        lockUntil: null
+        id: uuidv4(), username, password: hashedPassword,
+        nickname: nickname || username, createdAt: new Date().toISOString(),
+        loginAttempts: 0, lockUntil: null
     };
     db.users.push(newUser);
     writeDB(db);
 
     const token = jwt.sign({ userId: newUser.id, username: newUser.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
-    res.status(201).json({
-        message: '注册成功',
-        token,
-        user: { id: newUser.id, username: newUser.username, nickname: newUser.nickname, createdAt: newUser.createdAt }
-    });
+    res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, nickname: newUser.nickname, createdAt: newUser.createdAt } });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -297,11 +296,7 @@ app.post('/api/auth/login', async (req, res) => {
     writeDB(db);
 
     const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
-    res.json({
-        message: '登录成功',
-        token,
-        user: { id: user.id, username: user.username, nickname: user.nickname, createdAt: user.createdAt }
-    });
+    res.json({ message: '登录成功', token, user: { id: user.id, username: user.username, nickname: user.nickname, createdAt: user.createdAt } });
 });
 
 app.get('/api/auth/me', authMiddleware, (req, res) => {
@@ -335,47 +330,112 @@ app.put('/api/user/password', authMiddleware, async (req, res) => {
     const { oldPassword, newPassword } = req.body;
     if (!oldPassword || !newPassword) return res.status(400).json({ error: '旧密码和新密码不能为空' });
     if (newPassword.length < 6) return res.status(400).json({ error: '新密码长度不能少于 6 个字符' });
-
     const db = readDB();
     const userIndex = db.users.findIndex(u => u.id === req.user.userId);
     if (userIndex === -1) return res.status(404).json({ error: '用户不存在' });
     if (!(await bcrypt.compare(oldPassword, db.users[userIndex].password))) return res.status(400).json({ error: '旧密码不正确' });
-
     db.users[userIndex].password = await bcrypt.hash(newPassword, 10);
     writeDB(db);
     res.json({ message: '密码修改成功' });
 });
 
-// 注销账号（使用 forceRemoveDir 确保删除）
 app.delete('/api/user/account', authMiddleware, (req, res) => {
     const db = readDB();
     const userId = req.user.userId;
-
-    // 强制删除该用户的上传文件夹
     const userDir = path.join(uploadsDir, userId);
-    const deleted = forceRemoveDir(userDir);
-    if (!deleted) {
-        console.error(`[注销] 无法删除用户文件夹: ${userId}，将尝试重启清理。`);
-    }
-
-    // 清理数据库记录
+    forceRemoveDir(userDir);
     db.sites = db.sites.filter(s => s.userId !== userId);
+    db.apikeys = db.apikeys.filter(k => k.userId !== userId);
     db.users = db.users.filter(u => u.id !== userId);
     writeDB(db);
-
-    // 二次扫描残留
     if (fs.existsSync(uploadsDir)) {
         const validIds = new Set(db.users.map(u => u.id));
         const dirs = fs.readdirSync(uploadsDir);
         for (const dir of dirs) {
             const full = path.join(uploadsDir, dir);
-            if (fs.statSync(full).isDirectory() && !validIds.has(dir)) {
-                forceRemoveDir(full);
-            }
+            if (fs.statSync(full).isDirectory() && !validIds.has(dir)) forceRemoveDir(full);
         }
     }
-
     res.json({ message: '账号已注销' });
+});
+
+// ==================== API Key 路由 ====================
+app.post('/api/keys', authMiddleware, (req, res) => {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Key 名称不能为空' });
+    const db = readDB();
+    const key = generateApiKey();
+    const record = {
+        id: uuidv4(),
+        userId: req.user.userId,
+        userName: req.user.username,
+        name: name.trim(),
+        key,
+        createdAt: new Date().toISOString()
+    };
+    db.apikeys.push(record);
+    writeDB(db);
+    res.status(201).json({ message: 'API Key 创建成功', key: record });
+});
+
+app.get('/api/keys', authMiddleware, (req, res) => {
+    const db = readDB();
+    const keys = db.apikeys.filter(k => k.userId === req.user.userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ keys });
+});
+
+app.put('/api/keys/:keyId', authMiddleware, (req, res) => {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: '名称不能为空' });
+    const db = readDB();
+    const idx = db.apikeys.findIndex(k => k.id === req.params.keyId && k.userId === req.user.userId);
+    if (idx === -1) return res.status(404).json({ error: 'API Key 未找到' });
+    db.apikeys[idx].name = name.trim();
+    writeDB(db);
+    res.json({ message: '重命名成功', key: db.apikeys[idx] });
+});
+
+app.delete('/api/keys/:keyId', authMiddleware, (req, res) => {
+    const db = readDB();
+    const idx = db.apikeys.findIndex(k => k.id === req.params.keyId && k.userId === req.user.userId);
+    if (idx === -1) return res.status(404).json({ error: 'API Key 未找到' });
+    db.apikeys.splice(idx, 1);
+    writeDB(db);
+    res.json({ message: 'API Key 已删除' });
+});
+
+// ==================== API 部署（Key 鉴权） ====================
+app.post('/api/deploy', apiKeyAuth, upload.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: '请选择 HTML 文件' });
+    const siteId = req.body.siteId || generateSiteId();
+    const name = req.body.name || '未命名网站';
+    const description = req.body.description || '';
+    const db = readDB();
+    if (db.sites.find(s => s.id === siteId)) {
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        return res.status(409).json({ error: '该标识已被占用，请更换' });
+    }
+    const newPath = path.join(uploadsDir, req.user.userId, siteId + '.html');
+    fs.renameSync(req.file.path, newPath);
+    const site = { id: siteId, userId: req.user.userId, name, description, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), visitCount: 0 };
+    db.sites.push(site);
+    writeDB(db);
+    res.status(201).json({ message: '部署成功', site, url: `/h/${siteId}` });
+});
+
+app.post('/api/deploy/paste', apiKeyAuth, (req, res) => {
+    const { code, name, description, siteId } = req.body;
+    if (!code || !code.trim()) return res.status(400).json({ error: '代码不能为空' });
+    const finalSiteId = siteId || generateSiteId();
+    const db = readDB();
+    if (db.sites.find(s => s.id === finalSiteId)) return res.status(409).json({ error: '该标识已被占用，请更换' });
+    const userDir = path.join(uploadsDir, req.user.userId);
+    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+    fs.writeFileSync(path.join(userDir, finalSiteId + '.html'), code.trim());
+    const site = { id: finalSiteId, userId: req.user.userId, name: name || '未命名网站', description: description || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), visitCount: 0 };
+    db.sites.push(site);
+    writeDB(db);
+    res.status(201).json({ message: '部署成功', site, url: `/h/${finalSiteId}` });
 });
 
 // ==================== 网站路由 ====================
@@ -384,16 +444,13 @@ app.post('/api/sites/upload', authMiddleware, upload.single('file'), (req, res) 
     const siteId = req.body.siteId || generateSiteId();
     const name = req.body.name || '未命名网站';
     const description = req.body.description || '';
-
     const db = readDB();
     if (db.sites.find(s => s.id === siteId)) {
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(409).json({ error: '该标识已被占用，请更换' });
     }
-
     const newPath = path.join(uploadsDir, req.user.userId, siteId + '.html');
     fs.renameSync(req.file.path, newPath);
-
     const site = { id: siteId, userId: req.user.userId, name, description, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), visitCount: 0 };
     db.sites.push(site);
     writeDB(db);
@@ -404,14 +461,11 @@ app.post('/api/sites/paste', authMiddleware, (req, res) => {
     const { code, name, description, siteId } = req.body;
     if (!code || !code.trim()) return res.status(400).json({ error: '代码不能为空' });
     const finalSiteId = siteId || generateSiteId();
-
     const db = readDB();
     if (db.sites.find(s => s.id === finalSiteId)) return res.status(409).json({ error: '该标识已被占用，请更换' });
-
     const userDir = path.join(uploadsDir, req.user.userId);
     if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
     fs.writeFileSync(path.join(userDir, finalSiteId + '.html'), code.trim());
-
     const site = { id: finalSiteId, userId: req.user.userId, name: name || '未命名网站', description: description || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), visitCount: 0 };
     db.sites.push(site);
     writeDB(db);
@@ -482,7 +536,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: '服务器内部错误' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════╗
 ║         LMHost 已启动                 ║
