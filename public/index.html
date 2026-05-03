@@ -33,6 +33,8 @@
     <nav class="drawer-nav">
         <button class="drawer-item active" data-page="create" id="navCreate"><i class="fa-solid fa-plus"></i> <span></span></button>
         <button class="drawer-item" data-page="sites" id="navSites"><i class="fa-solid fa-folder"></i> <span></span></button>
+        <div class="drawer-separator"></div>
+        <button class="drawer-item" data-page="apikey" id="navApikey"><i class="fa-solid fa-key"></i> <span></span></button>
         <div class="drawer-nav-spacer"></div>
         <button class="drawer-item help-item" id="navHelp"><i class="fa-solid fa-circle-question"></i> <span></span></button>
     </nav>
@@ -114,6 +116,24 @@
             <i class="fa-solid fa-inbox"></i>
             <div class="text" id="emptyText"></div>
             <button class="btn btn-primary" id="btnGoCreate"><i class="fa-solid fa-plus"></i> <span></span></button>
+        </div>
+    </div>
+
+    <div class="page" id="page-apikey">
+        <div style="max-width:650px;">
+            <div class="card">
+                <div class="card-header" id="apikeyTitle"></div>
+                <p class="text-small mb-16" id="apikeyDesc"></p>
+                <ul class="apikey-list" id="apikeyList"></ul>
+                <div class="empty-state" id="emptyApikey" style="display:none;">
+                    <i class="fa-solid fa-key"></i>
+                    <div class="text" id="emptyApikeyText"></div>
+                </div>
+                <div class="apikey-create-row">
+                    <input class="input" id="apikeyName" placeholder="">
+                    <button class="btn btn-primary" id="btnCreateKey"><i class="fa-solid fa-plus"></i> <span></span></button>
+                </div>
+            </div>
         </div>
     </div>
 
