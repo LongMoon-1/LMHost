@@ -647,7 +647,12 @@ $('#btnDeleteAccount').onclick = async () => {
     try { await api('/api/user/account', { method:'DELETE' }); showToast(t('toast.accountDeleted'), 'info'); closeConfirmModal(); logout(true); }
     catch(e) { showToast(e.message, 'error'); closeConfirmModal(); }
 };
-$('#btnSettingsLogout').onclick = async () => { if (await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'))) logout(); };
+$('#btnSettingsLogout').onclick = async () => {
+    const confirmed = await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'));
+    if (!confirmed) return;
+    closeConfirmModal();
+    logout();
+};
 $('#btnResetCookie').onclick = async () => {
     const confirmed = await showConfirm(t('confirm.resetCookie'), 'warning', t('settings.resetCookie'));
     if (!confirmed) return;
@@ -668,8 +673,18 @@ $('#overlay').onclick = closeDrawer;
 $('#drawerClose').onclick = closeDrawer;
 $$('.drawer-item[data-page]').forEach(item => item.onclick = () => switchPage(item.dataset.page));
 $('#navHelp').onclick = () => { window.location.href = '/help'; };
-$('#drawerLogout').onclick = async () => { if (await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'))) logout(); };
-$('#btnLogout').onclick = async () => { if (await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'))) logout(); };
+$('#drawerLogout').onclick = async () => {
+    const confirmed = await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'));
+    if (!confirmed) return;
+    closeConfirmModal();
+    logout();
+};
+$('#btnLogout').onclick = async () => {
+    const confirmed = await showConfirm(t('confirm.logout'), 'warning', t('nav.logout'));
+    if (!confirmed) return;
+    closeConfirmModal();
+    logout();
+};
 document.onkeydown = e => { if(e.key==='Escape') { if (activeModal) { activeModal.close(); activeModal = null; } closeDrawer(); } };
 
 function setLoadingBtn(selector, loading, text = '') {
