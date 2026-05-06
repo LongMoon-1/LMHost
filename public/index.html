@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LMHost</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <button class="menu-btn" id="menuBtn" title="菜单"><i class="fa-solid fa-bars"></i></button>
+        <div class="logo"><i class="fa-solid fa-gem logo-icon"></i> LMHost</div>
+    </div>
+    <div class="header-right">
+        <span id="headerUser" style="display:none;" class="user-badge">
+            <div class="avatar"><i class="fa-solid fa-user"></i></div>
+            <span id="headerNickname"></span>
+        </span>
+        <button class="btn btn-ghost btn-sm" id="btnLogout" style="display:none;"></button>
+    </div>
+</header>
+
+<div class="overlay" id="overlay"></div>
+
+<aside class="drawer" id="drawer">
+    <div class="drawer-header">
+        <span class="drawer-title" id="drawerTitle"></span>
+        <button class="drawer-close" id="drawerClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <nav class="drawer-nav">
+        <button class="drawer-item active" data-page="create" id="navCreate"><i class="fa-solid fa-plus"></i> <span></span></button>
+        <button class="drawer-item" data-page="sites" id="navSites"><i class="fa-solid fa-folder"></i> <span></span></button>
+        <div class="drawer-separator"></div>
+        <button class="drawer-item" data-page="apikey" id="navApikey"><i class="fa-solid fa-key"></i> <span></span></button>
+        <div class="drawer-nav-spacer"></div>
+        <button class="drawer-item help-item" id="navHelp"><i class="fa-solid fa-circle-question"></i> <span></span></button>
+    </nav>
+    <div class="drawer-bottom">
+        <button class="drawer-item" data-page="settings" id="navSettings"><i class="fa-solid fa-gear"></i> <span></span></button>
+        <button class="drawer-item danger" id="drawerLogout"><i class="fa-solid fa-right-from-bracket"></i> <span></span></button>
+    </div>
+</aside>
+
+<main class="main" id="main">
+
+    <div class="page active" id="page-auth">
+        <div style="max-width:380px;width:100%;">
+            <div class="tabs">
+                <button class="tab active" data-tab="login" id="tabLogin"></button>
+                <button class="tab" data-tab="register" id="tabRegister"></button>
+            </div>
+            <div id="tab-login">
+                <div class="card">
+                    <div class="card-header" id="loginTitle"></div>
+                    <div class="form-group"><label id="lblLoginUsername"></label><input class="input" id="loginUsername" autocomplete="username"></div>
+                    <div class="form-group"><label id="lblLoginPassword"></label><input type="password" class="input" id="loginPassword" autocomplete="current-password"></div>
+                    <button class="btn btn-primary btn-block" id="btnLogin"></button>
+                    <div id="loginError" class="text-small text-danger mt-8" style="display:none;"></div>
+                </div>
+            </div>
+            <div id="tab-register" style="display:none;">
+                <div class="card">
+                    <div class="card-header" id="registerTitle"></div>
+                    <div class="form-group"><label id="lblRegUsername"></label><input class="input" id="regUsername" autocomplete="username"></div>
+                    <div class="form-group"><label id="lblRegNickname"></label><input class="input" id="regNickname" autocomplete="name"></div>
+                    <div class="form-group"><label id="lblRegPassword"></label><input type="password" class="input" id="regPassword" autocomplete="new-password"></div>
+                    <button class="btn btn-primary btn-block" id="btnRegister"></button>
+                    <div id="regError" class="text-small text-danger mt-8" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page" id="page-create">
+        <div class="tabs">
+            <button class="tab active" data-ctab="upload" id="ctabUpload"><i class="fa-solid fa-upload"></i> <span></span></button>
+            <button class="tab" data-ctab="paste" id="ctabPaste"><i class="fa-solid fa-code"></i> <span></span></button>
+        </div>
+        <div id="ctab-upload">
+            <div class="drop-zone" id="dropZone">
+                <i class="fa-solid fa-file-arrow-up"></i>
+                <div class="text" id="dropText"></div>
+                <div class="hint" id="dropHint"></div>
+                <input type="file" id="fileInput" accept=".html,.htm" style="display:none;">
+            </div>
+            <div id="fileInfo" style="display:none;" class="mt-12 flex-between">
+                <span id="fileName" class="text-small"></span>
+                <button class="btn btn-ghost btn-sm" id="btnClearFile"><i class="fa-solid fa-xmark"></i> <span></span></button>
+            </div>
+            <div class="form-group mt-12"><label id="lblUploadName"></label><input class="input" id="uploadName"></div>
+            <div class="form-group"><label id="lblUploadSiteId"></label><input class="input" id="uploadSiteId" maxlength="20"></div>
+            <button class="btn btn-primary btn-block" id="btnUploadDeploy"><i class="fa-solid fa-rocket"></i> <span></span></button>
+            <div class="deploy-result" id="uploadResult"><span id="deploySuccessText"></span><span class="url" id="uploadResultUrl"></span><button class="copy-btn"><i class="fa-solid fa-copy"></i></button></div>
+            <div id="uploadError" class="text-small text-danger mt-8" style="display:none;"></div>
+        </div>
+        <div id="ctab-paste" style="display:none;">
+            <div class="form-group"><label id="lblPasteCode"></label><textarea class="input" id="pasteCode"></textarea></div>
+            <div class="form-group"><label id="lblPasteName"></label><input class="input" id="pasteName"></div>
+            <div class="form-group"><label id="lblPasteSiteId"></label><input class="input" id="pasteSiteId" maxlength="20"></div>
+            <button class="btn btn-primary btn-block" id="btnPasteDeploy"><i class="fa-solid fa-rocket"></i> <span></span></button>
+            <div class="deploy-result" id="pasteResult"><span id="pasteSuccessText"></span><span class="url" id="pasteResultUrl"></span><button class="copy-btn"><i class="fa-solid fa-copy"></i></button></div>
+            <div id="pasteError" class="text-small text-danger mt-8" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="page" id="page-sites">
+        <div class="flex-between mb-16">
+            <span style="font-weight:600;" id="sitesTitle"></span>
+            <button class="btn btn-outline btn-sm" id="btnRefreshSites"><i class="fa-solid fa-rotate"></i> <span></span></button>
+        </div>
+        <div class="sites-grid" id="sitesGrid"></div>
+        <div class="empty-state" id="emptySites" style="display:none;">
+            <i class="fa-solid fa-inbox"></i>
+            <div class="text" id="emptyText"></div>
+            <button class="btn btn-primary" id="btnGoCreate"><i class="fa-solid fa-plus"></i> <span></span></button>
+        </div>
+    </div>
+
+    <div class="page" id="page-apikey">
+        <div style="max-width:650px;">
+            <div class="card">
+                <div class="card-header" id="apikeyTitle"></div>
+                <p class="text-small mb-16" id="apikeyDesc"></p>
+                <ul class="apikey-list" id="apikeyList"></ul>
+                <div class="empty-state" id="emptyApikey" style="display:none;">
+                    <i class="fa-solid fa-key"></i>
+                    <div class="text" id="emptyApikeyText"></div>
+                </div>
+                <div class="apikey-create-row">
+                    <input class="input" id="apikeyName" placeholder="">
+                    <button class="btn btn-primary" id="btnCreateKey"><i class="fa-solid fa-plus"></i> <span></span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page" id="page-settings">
+        <div class="settings-scroll">
+            <div class="card">
+                <div class="card-header" id="settingsGeneral"></div>
+                <div class="form-group">
+                    <label id="lblTheme"></label>
+                    <select class="input" id="themeSelect">
+                        <option value="auto"></option>
+                        <option value="dark"></option>
+                        <option value="light"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="lblLang"></label>
+                    <select class="input" id="langSelect"></select>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" id="settingsCookie"></div>
+                <p class="text-small mb-8" id="cookieHint"></p>
+                <button class="btn btn-danger" id="btnResetCookie"><i class="fa-solid fa-rotate"></i> <span></span></button>
+            </div>
+
+            <div class="card">
+                <div class="card-header" id="settingsProfile"></div>
+                <div class="form-group"><label id="lblNickname"></label><input class="input" id="settingsNickname"></div>
+                <button class="btn btn-primary" id="btnSaveNickname"><i class="fa-solid fa-floppy-disk"></i> <span></span></button>
+            </div>
+
+            <div class="card">
+                <div class="card-header" id="settingsPassword"></div>
+                <div class="form-group"><label id="lblOldPassword"></label><input type="password" class="input" id="oldPassword"></div>
+                <div class="form-group"><label id="lblNewPassword"></label><input type="password" class="input" id="newPassword"></div>
+                <button class="btn btn-primary" id="btnChangePassword"><i class="fa-solid fa-key"></i> <span></span></button>
+            </div>
+
+            <div class="card" style="border-color: rgba(248,81,73,0.3);">
+                <div class="card-header" style="color:var(--danger);" id="settingsDanger"></div>
+                <p class="text-small mb-8" id="dangerHint"></p>
+                <div class="flex-between gap-8" style="flex-wrap:wrap;">
+                    <button class="btn btn-danger" id="btnDeleteAllSites"><i class="fa-solid fa-trash"></i> <span></span></button>
+                    <button class="btn btn-danger" id="btnDeleteAccount"><i class="fa-solid fa-user-xmark"></i> <span></span></button>
+                </div>
+            </div>
+
+            <button class="btn btn-danger btn-block mt-8 mb-16" id="btnSettingsLogout"><i class="fa-solid fa-right-from-bracket"></i> <span></span></button>
+        </div>
+    </div>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
