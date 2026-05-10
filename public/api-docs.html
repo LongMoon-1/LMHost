@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>API 文档</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root {
+    --bg: #0d1117; --bg-secondary: #161b22; --bg-tertiary: #21262d;
+    --border: #30363d; --text: #c9d1d9; --text-secondary: #8b949e;
+    --text-muted: #484f58; --accent: #58a6ff; --danger: #f85149;
+    --success: #3fb950; --warning: #d2991d;
+    --radius: 6px; --radius-lg: 12px; --transition: all 0.15s ease;
+}
+[data-theme="light"] {
+    --bg: #fff; --bg-secondary: #f6f8fa; --bg-tertiary: #eaeef2;
+    --border: #d0d7de; --text: #1f2328; --text-secondary: #656d76;
+    --text-muted: #8c959f; --accent: #0969da;
+}
+@media (prefers-color-scheme: light) {
+    [data-theme="auto"] {
+        --bg: #fff; --bg-secondary: #f6f8fa; --bg-tertiary: #eaeef2;
+        --border: #d0d7de; --text: #1f2328; --text-secondary: #656d76;
+        --text-muted: #8c959f; --accent: #0969da;
+    }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.7; padding: 24px 20px; max-width: 860px; margin: 0 auto; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h2 { font-size: 1.1rem; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 0.95rem; margin: 16px 0 8px; color: var(--accent); }
+p { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 10px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; margin-right: 6px; }
+.badge.post { background: rgba(88,166,255,0.15); color: #58a6ff; }
+.endpoint { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; font-family: monospace; font-size: 0.85rem; margin: 8px 0; word-break: break-all; }
+.endpoint .method { color: var(--accent); font-weight: 700; margin-right: 10px; }
+pre { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; overflow-x: auto; font-size: 0.8rem; line-height: 1.6; margin: 8px 0; }
+code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; background: var(--bg-tertiary); padding: 1px 5px; border-radius: 3px; }
+pre code { background: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.85rem; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+th { color: var(--text); font-weight: 600; }
+td { color: var(--text-secondary); }
+.key-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<div id="content"></div>
+
+<script>
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const lang = urlParams.get('lang') || 'zh';
+    const isZh = lang === 'zh';
+
+    const labels = {
+        auth: isZh ? '认证' : 'Auth',
+        authDesc: isZh ? '所有 API 请求需在 Header 中携带 ' : 'All API requests must include ',
+        deployUpload: isZh ? '上传 HTML 文件部署' : 'Upload HTML File',
+        deployPaste: isZh ? '粘贴代码部署' : 'Paste Code',
+        params: isZh ? '参数' : 'Parameters',
+        param: isZh ? '参数' : 'Param',
+        type: isZh ? '类型' : 'Type',
+        required: isZh ? '必填' : 'Required',
+        desc: isZh ? '说明' : 'Description',
+        fileParam: isZh ? 'HTML 文件' : 'HTML file',
+        nameParam: isZh ? '网站名称' : 'Site name',
+        siteIdParam: isZh ? '自定义标识，留空自动生成' : 'Custom ID, auto-generated if empty',
+        codeParam: isZh ? 'HTML 代码' : 'HTML code',
+        curlExample: isZh ? 'curl 示例' : 'curl Example',
+        response: isZh ? '响应' : 'Response',
+        errors: isZh ? '错误码' : 'Errors',
+        statusCode: isZh ? '状态码' : 'Status',
+        error401: isZh ? 'API Key 缺失或无效' : 'API Key missing or invalid',
+        error400: isZh ? '参数错误（文件为空 / 代码为空）' : 'Bad request (empty file/code)',
+        error409: isZh ? '自定义标识已被占用' : 'Custom ID already taken',
+        error429: isZh ? '请求过于频繁（30次/分钟）' : 'Rate limited (30/min)',
+        htmlExample: isZh ? 'HTML 调用示例' : 'HTML Example',
+        getKey: isZh ? '获取 API Key' : 'Get API Key',
+        getKeyDesc: isZh ? '登录 LMHost → 导航栏点击「API Key」→ 输入名称 → 创建 → 复制 Key。Key 仅在创建时完整显示一次。' : 'Login → "API Key" → enter name → create → copy key. Key is shown in full only once.',
+    };
+
+    const HOST = location.origin;
+    const demoKey = 'lm_xxxxxxxx';
+
+    document.getElementById('content').innerHTML = `
+        <h2>${labels.auth}</h2>
+        <p>${labels.authDesc}<code>X-API-Key</code>：</p>
+        <pre><code>X-API-Key: ${demoKey}</code></pre>
+
+        <h2>${labels.deployUpload}</h2>
+        <p><span class="badge post">POST</span></p>
+        <div class="endpoint"><span class="method">POST</span> /api/deploy</div>
+        <p>Content-Type: <code>multipart/form-data</code></p>
+
+        <h3>${labels.params}</h3>
+        <table>
+            <tr><th>${labels.param}</th><th>${labels.type}</th><th>${labels.required}</th><th>${labels.desc}</th></tr>
+            <tr><td>file</td><td>File</td><td>${isZh?'是':'Yes'}</td><td>${labels.fileParam}</td></tr>
+            <tr><td>name</td><td>String</td><td>${isZh?'否':'No'}</td><td>${labels.nameParam}</td></tr>
+            <tr><td>siteId</td><td>String</td><td>${isZh?'否':'No'}</td><td>${labels.siteIdParam}</td></tr>
+        </table>
+
+        <h3>${labels.curlExample}</h3>
+        <pre><code>curl -X POST ${HOST}/api/deploy \\
+  -H "X-API-Key: ${demoKey}" \\
+  -F "file=@index.html" \\
+  -F "name=${isZh?'我的网站':'My Site'}"</code></pre>
+
+        <h3>${labels.response}</h3>
+        <pre><code>{
+  "message": "${isZh?'部署成功':'Deploy success'}",
+  "site": { "id": "abc12345", "name": "...", ... },
+  "url": "/h/abc12345"
+}</code></pre>
+
+        <hr style="border-color:var(--border);margin:20px 0;">
+
+        <h2>${labels.deployPaste}</h2>
+        <p><span class="badge post">POST</span></p>
+        <div class="endpoint"><span class="method">POST</span> /api/deploy/paste</div>
+        <p>Content-Type: <code>application/json</code></p>
+
+        <table>
+            <tr><th>${labels.param}</th><th>${labels.type}</th><th>${labels.required}</th><th>${labels.desc}</th></tr>
+            <tr><td>code</td><td>String</td><td>${isZh?'是':'Yes'}</td><td>${labels.codeParam}</td></tr>
+            <tr><td>name</td><td>String</td><td>${isZh?'否':'No'}</td><td>${labels.nameParam}</td></tr>
+            <tr><td>siteId</td><td>String</td><td>${isZh?'否':'No'}</td><td>${labels.siteIdParam}</td></tr>
+        </table>
+
+        <pre><code>curl -X POST ${HOST}/api/deploy/paste \\
+  -H "X-API-Key: ${demoKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"code":"&lt;h1&gt;Hello&lt;/h1&gt;","name":"${isZh?'我的网站':'My Site'}"}'</code></pre>
+
+        <h2>${labels.errors}</h2>
+        <table>
+            <tr><th>${labels.statusCode}</th><th>${labels.desc}</th></tr>
+            <tr><td>401</td><td>${labels.error401}</td></tr>
+            <tr><td>400</td><td>${labels.error400}</td></tr>
+            <tr><td>409</td><td>${labels.error409}</td></tr>
+            <tr><td>429</td><td>${labels.error429}</td></tr>
+        </table>
+
+        <h2>${labels.htmlExample}</h2>
+        <pre><code>&lt;input type="file" id="f" accept=".html"&gt;
+&lt;input type="text" id="n" placeholder="${isZh?'网站名称':'Site name'}"&gt;
+&lt;button onclick="deploy()"&gt;${isZh?'部署':'Deploy'}&lt;/button&gt;
+
+&lt;script&gt;
+const KEY = '${demoKey}';
+const HOST = '${HOST}';
+async function deploy() {
+  const fd = new FormData();
+  fd.append('file', f.files[0]);
+  fd.append('name', n.value || '${isZh?'未命名':'Untitled'}');
+  const r = await fetch(HOST+'/api/deploy', {
+    method:'POST', headers:{'X-API-Key':KEY}, body:fd
+  });
+  const d = await r.json();
+  console.log(r.ok ? d.url : d.error);
+}
+&lt;/script&gt;</code></pre>
+
+        <div class="key-section">
+            <h3 style="margin-top:0;">${labels.getKey}</h3>
+            <p>${labels.getKeyDesc}</p>
+        </div>
+    `;
+})();
+</script>
+</body>
+</html>
