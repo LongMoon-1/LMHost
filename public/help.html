@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>LMHost</title>
+<title>LMHost - 帮助中心</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 :root {
@@ -60,6 +60,10 @@ a { color: var(--accent); text-decoration: none; }
 .detail-body strong { color: var(--text); }
 .detail-body code { background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; color: var(--accent); }
 .detail-body pre { background: var(--bg-tertiary); padding: 12px 16px; border-radius: var(--radius); overflow-x: auto; font-family: monospace; font-size: 0.8rem; line-height: 1.6; margin: 8px 0; white-space: pre-wrap; word-break: break-all; }
+
+.iframe-wrapper { width: 100%; height: calc(100vh - 120px); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.iframe-wrapper iframe { width: 100%; height: 100%; border: none; }
+
 @media (max-width: 640px) { .sidebar { display: none; } .mobile-tabs { display: flex; } .content { padding: 12px 14px; } }
 </style>
 </head>
@@ -97,7 +101,8 @@ const zh = {
         { id: 'guide', icon: 'fa-book', name: '使用引导' },
         { id: 'apikey', icon: 'fa-key', name: 'API Key' },
         { id: 'features', icon: 'fa-puzzle-piece', name: '功能问题' },
-        { id: 'cookie', icon: 'fa-cookie-bite', name: 'Cookie' }
+        { id: 'cookie', icon: 'fa-cookie-bite', name: 'Cookie' },
+        { id: 'docs', icon: 'fa-file-code', name: 'API 文档' }
     ],
     items: {
         login: [
@@ -115,10 +120,10 @@ const zh = {
         ],
         apikey: [
             { q: '什么是 API Key？', a: 'API Key 是一个密钥令牌，允许您通过命令行或脚本直接部署网站，无需在浏览器中登录。每个 Key 由用户独立管理，互不影响。' },
-            { q: '如何创建 API Key？', a: '在<strong>「API Key」</strong>页面，输入 Key 名称（如"我的脚本"），点击<strong>「创建」</strong>。创建后立即显示完整 Key，请妥善保管。' },
+            { q: '如何创建 API Key？', a: '在<strong>「API Key」</strong>页面，输入 Key 名称，点击<strong>「创建」</strong>。创建后立即显示完整 Key，请妥善保管。' },
             { q: '如何使用 API Key 部署网站？', a: '上传文件：<br><pre>curl -X POST ' + HOST + '/api/deploy \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -F "file=@index.html" \\\n  -F "name=我的网站"</pre>粘贴代码：<br><pre>curl -X POST ' + HOST + '/api/deploy/paste \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"code":"&lt;h1&gt;Hello&lt;/h1&gt;","name":"我的网站"}\'</pre>' },
-            { q: '如何管理 API Key？', a: '在<strong>「API Key」</strong>页面可以<strong>查看</strong>（点击「查看」展开完整 Key）、<strong>复制</strong>、<strong>重命名</strong>和<strong>删除</strong> Key。删除的 Key 立即失效。' },
-            { q: 'API Key 安全吗？', a: 'Key 仅在创建时完整显示一次，之后只能看到后几位。支持跨域调用（CORS），可通过任何网络环境使用。请勿泄露您的 Key。' }
+            { q: '如何管理 API Key？', a: '在<strong>「API Key」</strong>页面可以<strong>查看</strong>、<strong>复制</strong>、<strong>重命名</strong>和<strong>删除</strong> Key。删除的 Key 立即失效。' },
+            { q: 'API Key 安全吗？', a: 'Key 仅在创建时完整显示一次，之后只能看到后几位。支持跨域调用，可通过任何网络环境使用。请勿泄露您的 Key。' }
         ],
         features: [
             { q: '如何切换主题颜色？', a: '进入<strong>「设置」</strong>→「通用设置」→「主题颜色」下拉选择。' },
@@ -132,7 +137,8 @@ const zh = {
             { q: '为什么需要接受 Cookie？', a: '接受 Cookie 后，您的登录状态、主题和语言偏好会被持久保存。拒绝 Cookie 将使用临时内存存储，关闭浏览器后数据会丢失。' },
             { q: '如何重置 Cookie？', a: '进入<strong>「设置」</strong>→「Cookie」→ 点击「重置 Cookie」。此操作将清除所有本地数据，下次进入需重新登录并授权 Cookie。' },
             { q: 'Cookie 安全吗？', a: 'LMHost 使用的 Cookie 不包含敏感个人信息，令牌经过加密，且设置了 SameSite 保护。' }
-        ]
+        ],
+        docs: []
     },
     langSwitchLabel: 'English', detailBack: '返回'
 };
@@ -144,7 +150,8 @@ const en = {
         { id: 'guide', icon: 'fa-book', name: 'Usage Guide' },
         { id: 'apikey', icon: 'fa-key', name: 'API Key' },
         { id: 'features', icon: 'fa-puzzle-piece', name: 'Features' },
-        { id: 'cookie', icon: 'fa-cookie-bite', name: 'Cookie' }
+        { id: 'cookie', icon: 'fa-cookie-bite', name: 'Cookie' },
+        { id: 'docs', icon: 'fa-file-code', name: 'API Docs' }
     ],
     items: {
         login: [
@@ -162,7 +169,7 @@ const en = {
         ],
         apikey: [
             { q: 'What is an API Key?', a: 'An API Key is a token that allows you to deploy sites via command line or scripts without logging in through a browser. Each key is managed independently per user.' },
-            { q: 'How to create an API Key?', a: 'On the <strong>"API Key"</strong> page, enter a name (e.g. "My Script") and click <strong>"Create"</strong>. The full key is shown once — save it securely.' },
+            { q: 'How to create an API Key?', a: 'On the <strong>"API Key"</strong> page, enter a name and click <strong>"Create"</strong>. The full key is shown once — save it securely.' },
             { q: 'How to use API Key to deploy?', a: 'Upload file:<br><pre>curl -X POST ' + HOST + '/api/deploy \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -F "file=@index.html" \\\n  -F "name=My Site"</pre>Paste code:<br><pre>curl -X POST ' + HOST + '/api/deploy/paste \\\n  -H "X-API-Key: lm_xxxxxxxx" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"code":"&lt;h1&gt;Hello&lt;/h1&gt;","name":"My Site"}\'</pre>' },
             { q: 'How to manage API Keys?', a: 'On the <strong>"API Key"</strong> page you can <strong>reveal</strong>, <strong>copy</strong>, <strong>rename</strong>, and <strong>delete</strong> keys. Deleted keys are immediately invalidated.' },
             { q: 'Are API Keys secure?', a: 'The full key is shown only once upon creation. It supports CORS for cross-origin requests. Do not share your key publicly.' }
@@ -179,7 +186,8 @@ const en = {
             { q: 'Why accept Cookies?', a: 'Accepting Cookies allows persistent storage of your preferences. Rejecting uses temporary memory that clears when the browser closes.' },
             { q: 'How to reset Cookies?', a: 'Go to <strong>Settings</strong> → Cookie → click "Reset Cookie". All local data will be cleared and you will need to log in again.' },
             { q: 'Are Cookies safe?', a: 'LMHost Cookies contain no sensitive personal data. Tokens are encrypted and protected with SameSite.' }
-        ]
+        ],
+        docs: []
     },
     langSwitchLabel: '中文', detailBack: 'Back'
 };
@@ -192,6 +200,10 @@ function $(s) { return document.querySelector(s); }
 
 let activeCategory = t.categories[0].id;
 
+function getDocsLang() {
+    return currentLang === 'zh' ? 'zh' : 'en';
+}
+
 function renderSidebar() {
     const sidebar = $('#sidebar');
     sidebar.innerHTML = t.categories.map(c => `<button class="sidebar-item${c.id===activeCategory?' active':''}" data-cat="${c.id}"><i class="fa-solid ${c.icon}"></i> ${c.name}</button>`).join('');
@@ -203,6 +215,10 @@ function renderMobileTabs() {
     c.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => { activeCategory = b.dataset.cat; renderAll(); });
 }
 function renderContent() {
+    if (activeCategory === 'docs') {
+        $('#content').innerHTML = `<div class="iframe-wrapper"><iframe src="/api-docs.html?lang=${getDocsLang()}"></iframe></div>`;
+        return;
+    }
     const items = t.items[activeCategory] || [];
     $('#content').innerHTML = `<h2 class="category-title">${t.categories.find(c=>c.id===activeCategory).name}</h2><ul class="help-list">${items.map((it,i)=>`<li><div class="help-item" data-idx="${i}"><span class="item-text">${it.q}</span><i class="fa-solid fa-chevron-right item-arrow"></i></div></li>`).join('')}</ul>`;
     document.querySelectorAll('.help-item').forEach(el => el.onclick = () => {
